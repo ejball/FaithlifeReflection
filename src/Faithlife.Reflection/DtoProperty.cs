@@ -33,6 +33,11 @@ namespace Faithlife.Reflection
 		public MemberInfo MemberInfo { get; }
 
 		/// <summary>
+		/// The index of the property or field into the list of properties and fields of the DTO.
+		/// </summary>
+		public int Index { get; }
+
+		/// <summary>
 		/// Gets the value of the property or field for the specified instance of the DTO.
 		/// </summary>
 		/// <param name="source">The DTO instance.</param>
@@ -81,23 +86,25 @@ namespace Faithlife.Reflection
 		void IDtoProperty<TSource>.SetValue(TSource source, object? value) => SetValue(source, (TValue) value!);
 
 		// called by DtoInfo.CreateDtoProperty via reflection
-		internal DtoProperty(PropertyInfo propertyInfo)
+		internal DtoProperty(PropertyInfo propertyInfo, int index)
 		{
 			Name = propertyInfo.Name;
 			ValueType = propertyInfo.PropertyType;
 			IsReadOnly = propertyInfo.SetMethod?.IsPublic != true;
 			MemberInfo = propertyInfo;
+			Index = index;
 			m_lazyGetter = new Lazy<Func<TSource, TValue>>(GeneratePropertyGetter);
 			m_lazySetter = new Lazy<Action<TSource, TValue>>(GeneratePropertySetter);
 		}
 
 		// called by DtoInfo.CreateDtoProperty via reflection
-		internal DtoProperty(FieldInfo fieldInfo)
+		internal DtoProperty(FieldInfo fieldInfo, int index)
 		{
 			Name = fieldInfo.Name;
 			ValueType = fieldInfo.FieldType;
 			IsReadOnly = fieldInfo.IsInitOnly;
 			MemberInfo = fieldInfo;
+			Index = index;
 			m_lazyGetter = new Lazy<Func<TSource, TValue>>(GenerateFieldGetter);
 			m_lazySetter = new Lazy<Action<TSource, TValue>>(GenerateFieldSetter);
 		}

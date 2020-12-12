@@ -268,7 +268,17 @@ namespace Faithlife.Reflection
 			m_lazyCreateNew = new Lazy<Func<T>>(() => Expression.Lambda<Func<T>>(Expression.New(typeof(T))).Compile());
 
 			m_lazyProperties = new Lazy<IReadOnlyList<IDtoProperty<T>>>(
-				() => new ReadOnlyCollection<IDtoProperty<T>>(GetProperties().ToArray()));
+				() =>
+				{
+					var type = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
+					var properties = new List<IDtoProperty<T>>();
+					foreach (var property in type.GetRuntimeProperties().Where(IsPublicNonStaticProperty))
+						properties.Add(CreateDtoProperty(property, properties.Count));
+					foreach (var field in type.GetRuntimeFields().Where(IsPublicNonStaticField))
+						properties.Add(CreateDtoProperty(field, properties.Count));
+					properties.TrimExcess();
+					return properties.AsReadOnly();
+				});
 
 			m_lazyPropertiesByName = new Lazy<IReadOnlyDictionary<string, IDtoProperty<T>>>(
 				() => m_lazyProperties.Value.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase));
@@ -281,30 +291,23 @@ namespace Faithlife.Reflection
 			static bool IsPublicNonStaticProperty(PropertyInfo info) => info.GetMethod != null && info.GetMethod.IsPublic && !info.GetMethod.IsStatic;
 
 			static bool IsPublicNonStaticField(FieldInfo info) => info.IsPublic && !info.IsStatic;
-
-			static IEnumerable<IDtoProperty<T>> GetProperties()
-			{
-				var type = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
-				return type.GetRuntimeProperties().Where(IsPublicNonStaticProperty).Select(CreateDtoProperty)
-					.Concat(type.GetRuntimeFields().Where(IsPublicNonStaticField).Select(CreateDtoProperty));
-			}
 		}
 
-		private static IDtoProperty<T> CreateDtoProperty(PropertyInfo propertyInfo) =>
+		private static IDtoProperty<T> CreateDtoProperty(PropertyInfo propertyInfo, int index) =>
 			(IDtoProperty<T>) typeof(DtoProperty<,>)
 				.MakeGenericType(typeof(T), propertyInfo.PropertyType)
 				.GetTypeInfo()
 				.DeclaredConstructors
-				.Single(c => c.GetParameters().Select(p => p.ParameterType).SequenceEqual(new[] { typeof(PropertyInfo) }))
-				.Invoke(new object[] { propertyInfo });
+				.Single(c => c.GetParameters().Select(p => p.ParameterType).SequenceEqual(new[] { typeof(PropertyInfo), typeof(int) }))
+				.Invoke(new object[] { propertyInfo, index });
 
-		private static IDtoProperty<T> CreateDtoProperty(FieldInfo fieldInfo) =>
+		private static IDtoProperty<T> CreateDtoProperty(FieldInfo fieldInfo, int index) =>
 			(IDtoProperty<T>) typeof(DtoProperty<,>)
 				.MakeGenericType(typeof(T), fieldInfo.FieldType)
 				.GetTypeInfo()
 				.DeclaredConstructors
-				.Single(c => c.GetParameters().Select(p => p.ParameterType).SequenceEqual(new[] { typeof(FieldInfo) }))
-				.Invoke(new object[] { fieldInfo });
+				.Single(c => c.GetParameters().Select(p => p.ParameterType).SequenceEqual(new[] { typeof(FieldInfo), typeof(int) }))
+				.Invoke(new object[] { fieldInfo, index });
 
 		private static string GetPropertyName<TValue>(Expression<Func<T, TValue>> getter) =>
 			getter.Body is MemberExpression body ? body.Member.Name : throw new ArgumentException("Invalid getter.", nameof(getter));

@@ -31,6 +31,11 @@ namespace Faithlife.Reflection
 		MemberInfo MemberInfo { get; }
 
 		/// <summary>
+		/// The index of the property or field into the list of properties and fields of the DTO.
+		/// </summary>
+		int Index { get; }
+
+		/// <summary>
 		/// Gets the value of the property or field for the specified instance of the DTO.
 		/// </summary>
 		/// <param name="source">The DTO instance.</param>

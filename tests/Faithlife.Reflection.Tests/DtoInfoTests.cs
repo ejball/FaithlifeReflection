@@ -275,6 +275,13 @@ namespace Faithlife.Reflection.Tests
 		}
 
 		[Test]
+		public void PropertyIndex()
+		{
+			foreach (var (property, index) in DtoInfo.GetInfo<WeirdDto>().Properties.Select((x, i) => (x, i)))
+				property.Index.Should().Be(index);
+		}
+
+		[Test]
 		public void StrongAnonymousType()
 		{
 			DtoInfo<T> GetInfo<T>(T t) => DtoInfo.GetInfo<T>();
